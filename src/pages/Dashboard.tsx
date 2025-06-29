@@ -41,6 +41,8 @@ const Dashboard = () => {
     if (!user) return;
 
     try {
+      console.log('Fetching businesses for user:', user.id);
+      
       // Fetch businesses owned by user
       const { data: ownedBusinesses, error: ownedError } = await supabase
         .from('businesses')
@@ -48,7 +50,12 @@ const Dashboard = () => {
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (ownedError) throw ownedError;
+      if (ownedError) {
+        console.error('Error fetching owned businesses:', ownedError);
+        throw ownedError;
+      }
+
+      console.log('Owned businesses:', ownedBusinesses);
 
       // Fetch businesses where user is an employee
       const { data: employeeRelations, error: employeeError } = await supabase
@@ -62,7 +69,12 @@ const Dashboard = () => {
         .eq('user_id', user.id)
         .eq('status', 'active');
 
-      if (employeeError) throw employeeError;
+      if (employeeError) {
+        console.error('Error fetching employee relations:', employeeError);
+        throw employeeError;
+      }
+
+      console.log('Employee relations:', employeeRelations);
 
       // Combine owned and employee businesses
       const allBusinesses = [
@@ -75,8 +87,18 @@ const Dashboard = () => {
         index === self.findIndex(b => b.id === business.id)
       );
 
+      console.log('All unique businesses:', uniqueBusinesses);
+
       setBusinesses(uniqueBusinesses);
-      setBusinessEmployees(employeeRelations || []);
+      
+      // Fix the type casting issue
+      const employeeData: BusinessEmployee[] = (employeeRelations || []).map(rel => ({
+        business_id: rel.business_id,
+        role: rel.role as 'admin' | 'employee',
+        status: rel.status as 'pending' | 'active' | 'inactive'
+      }));
+      
+      setBusinessEmployees(employeeData);
     } catch (error) {
       console.error('Error fetching businesses:', error);
       toast.error('Failed to load businesses');
@@ -104,7 +126,7 @@ const Dashboard = () => {
     return (
       <AuthGuard>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-business-blue"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </AuthGuard>
     );
@@ -116,7 +138,7 @@ const Dashboard = () => {
         <OfflineIndicator />
         
         {/* Header */}
-        <header className="sticky top-0 z-50 glass-effect border-b">
+        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <Logo size="md" />
@@ -131,7 +153,7 @@ const Dashboard = () => {
                     <p className="font-medium text-sm">
                       {profile?.first_name} {profile?.last_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   
                   <Button
@@ -152,7 +174,7 @@ const Dashboard = () => {
           <div className="max-w-6xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-2">Your Businesses</h1>
-              <p className="text-muted-foreground">
+              <p className="text-gray-600">
                 Manage and monitor your business operations
               </p>
             </div>
@@ -162,7 +184,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Businesses</CardTitle>
-                  <Building2 className="h-4 w-4 text-business-blue" />
+                  <Building2 className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{businesses.length}</div>
@@ -172,7 +194,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">As Owner</CardTitle>
-                  <Users className="h-4 w-4 text-business-green" />
+                  <Users className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
@@ -184,7 +206,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">As Employee</CardTitle>
-                  <Users className="h-4 w-4 text-business-gold" />
+                  <Users className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
@@ -196,7 +218,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-business-red" />
+                  <BarChart3 className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{businesses.length}</div>
@@ -209,7 +231,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold">Your Businesses</h2>
               <Button
                 onClick={() => setShowCreateDialog(true)}
-                className="business-gradient"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Business
@@ -218,14 +240,14 @@ const Dashboard = () => {
 
             {businesses.length === 0 ? (
               <Card className="p-12 text-center">
-                <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No businesses yet</h3>
-                <p className="text-muted-foreground mb-6">
+                <p className="text-gray-600 mb-6">
                   Create your first business to start managing your operations
                 </p>
                 <Button
                   onClick={() => setShowCreateDialog(true)}
-                  className="business-gradient"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Business

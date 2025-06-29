@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -58,6 +59,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
+      console.log('Profile fetched:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -65,9 +67,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
+    console.log('Setting up auth state listener');
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -85,6 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -100,6 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
     try {
+      console.log('Signing up user:', email);
       const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { error } = await supabase.auth.signUp({
@@ -115,6 +121,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) {
+        console.error('Sign up error:', error);
         toast.error(error.message);
         return { error };
       }
@@ -122,6 +129,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       toast.success('Please check your email to confirm your account!');
       return { error: null };
     } catch (error) {
+      console.error('Sign up error:', error);
       toast.error('An unexpected error occurred');
       return { error };
     }
@@ -129,12 +137,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Signing in user:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         toast.error(error.message);
         return { error };
       }
@@ -142,6 +152,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       toast.success('Welcome back!');
       return { error: null };
     } catch (error) {
+      console.error('Sign in error:', error);
       toast.error('An unexpected error occurred');
       return { error };
     }
@@ -149,6 +160,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signInWithGoogle = async () => {
     try {
+      console.log('Signing in with Google');
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -157,12 +169,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) {
+        console.error('Google sign in error:', error);
         toast.error(error.message);
         return { error };
       }
 
       return { error: null };
     } catch (error) {
+      console.error('Google sign in error:', error);
       toast.error('An unexpected error occurred');
       return { error };
     }
@@ -170,24 +184,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = async () => {
     try {
+      console.log('Signing out user');
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('Sign out error:', error);
         toast.error(error.message);
       } else {
         toast.success('Signed out successfully');
       }
     } catch (error) {
+      console.error('Sign out error:', error);
       toast.error('An unexpected error occurred');
     }
   };
 
   const resetPassword = async (email: string) => {
     try {
+      console.log('Resetting password for:', email);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?mode=reset-password`
       });
 
       if (error) {
+        console.error('Reset password error:', error);
         toast.error(error.message);
         return { error };
       }
@@ -195,6 +214,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       toast.success('Password reset email sent!');
       return { error: null };
     } catch (error) {
+      console.error('Reset password error:', error);
       toast.error('An unexpected error occurred');
       return { error };
     }

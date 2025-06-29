@@ -48,12 +48,18 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      toast.error('You must be logged in to create a business');
+      return;
+    }
+
+    console.log('Creating business with data:', formData);
+    console.log('User ID:', user.id);
 
     setIsLoading(true);
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('businesses')
         .insert([
           {
@@ -66,9 +72,16 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
             address: formData.address || null,
             owner_id: user.id,
           }
-        ]);
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating business:', error);
+        throw error;
+      }
+
+      console.log('Business created successfully:', data);
 
       // Reset form
       setFormData({
@@ -81,10 +94,11 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
         address: '',
       });
 
+      toast.success('Business created successfully!');
       onBusinessCreated();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating business:', error);
-      toast.error('Failed to create business');
+      toast.error(error.message || 'Failed to create business');
     } finally {
       setIsLoading(false);
     }
@@ -202,7 +216,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
             </Button>
             <Button
               type="submit"
-              className="flex-1 business-gradient"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isLoading || !formData.name || !formData.industry || !formData.location}
             >
               {isLoading ? 'Creating...' : 'Create Business'}

@@ -102,16 +102,20 @@
 }
 
 @layer utilities {
-  .business-gradient {
-    background: linear-gradient(135deg, hsl(var(--business-blue)) 0%, hsl(var(--business-green)) 100%);
+  .business-blue {
+    @apply bg-blue-600 text-white;
   }
   
-  .success-gradient {
-    background: linear-gradient(135deg, hsl(var(--business-green)) 0%, hsl(var(--business-blue)) 100%);
+  .business-green {
+    @apply bg-green-600 text-white;
   }
   
-  .warning-gradient {
-    background: linear-gradient(135deg, hsl(var(--business-gold)) 0%, hsl(var(--business-red)) 100%);
+  .business-gold {
+    @apply bg-yellow-600 text-white;
+  }
+
+  .business-red {
+    @apply bg-red-600 text-white;
   }
 
   .glass-effect {
@@ -140,7 +144,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background: hsl(var(--business-red));
+  background: #dc2626;
   color: white;
   text-align: center;
   padding: 0.5rem;
@@ -159,14 +163,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary));
+  background: #3b82f6;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary) / 0.8);
+  background: #2563eb;
 }

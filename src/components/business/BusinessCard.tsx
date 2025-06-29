@@ -33,13 +33,13 @@ const BusinessCard = ({ business, userRole }: BusinessCardProps) => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'owner':
-        return 'bg-business-blue text-white';
+        return 'bg-blue-600 text-white hover:bg-blue-700';
       case 'admin':
-        return 'bg-business-green text-white';
+        return 'bg-green-600 text-white hover:bg-green-700';
       case 'employee':
-        return 'bg-business-gold text-white';
+        return 'bg-yellow-600 text-white hover:bg-yellow-700';
       default:
-        return 'bg-gray-500 text-white';
+        return 'bg-gray-500 text-white hover:bg-gray-600';
     }
   };
 
@@ -48,7 +48,7 @@ const BusinessCard = ({ business, userRole }: BusinessCardProps) => {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-2">
-            <Building2 className="h-5 w-5 text-business-blue" />
+            <Building2 className="h-5 w-5 text-blue-600" />
             <div>
               <CardTitle className="text-lg">{business.name}</CardTitle>
               <Badge className={getRoleBadgeColor(userRole)} variant="secondary">
@@ -67,30 +67,30 @@ const BusinessCard = ({ business, userRole }: BusinessCardProps) => {
       
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Badge variant="outline">{business.industry}</Badge>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
             <MapPin className="h-4 w-4" />
             <span>{business.location}</span>
           </div>
           
           {business.phone && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Phone className="h-4 w-4" />
               <span>{business.phone}</span>
             </div>
           )}
           
           {business.email && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Mail className="h-4 w-4" />
               <span>{business.email}</span>
             </div>
           )}
           
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Calendar className="h-4 w-4" />
             <span>Created {new Date(business.created_at).toLocaleDateString()}</span>
           </div>
@@ -98,7 +98,7 @@ const BusinessCard = ({ business, userRole }: BusinessCardProps) => {
 
         <Button
           onClick={handleViewBusiness}
-          className="w-full business-gradient"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           <ExternalLink className="h-4 w-4 mr-2" />
           Manage Business
