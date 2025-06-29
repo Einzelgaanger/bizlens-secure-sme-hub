@@ -1,298 +1,359 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import Logo from '@/components/Logo';
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { Mail, Lock, User, Phone } from 'lucide-react';
+import { FcGoogle } from 'react-icons/fc';
+import AuthGuard from '@/components/AuthGuard';
+import OfflineIndicator from '@/components/OfflineIndicator';
 
 const Auth = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [forgotPassword, setForgotPassword] = useState(false);
-  const { toast } = useToast();
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('signin');
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
-  const handleGoogleAuth = () => {
-    toast({
-      title: "Google OAuth",
-      description: "Please connect to Supabase to enable Google authentication.",
-    });
-  };
+  // Sign In Form State
+  const [signInData, setSignInData] = useState({
+    email: '',
+    password: '',
+  });
 
-  const handleEmailAuth = (e: React.FormEvent) => {
+  // Sign Up Form State
+  const [signUpData, setSignUpData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  // Reset Password State
+  const [resetEmail, setResetEmail] = useState('');
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Email Authentication",
-      description: "Please connect to Supabase to enable email authentication.",
-    });
+    setIsLoading(true);
+
+    const { error } = await signIn(signInData.email, signInData.password);
+    
+    if (!error) {
+      window.location.href = '/dashboard';
+    }
+    
+    setIsLoading(false);
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Password Reset",
-      description: "Please connect to Supabase to enable password reset functionality.",
-    });
+    
+    if (signUpData.password !== signUpData.confirmPassword) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    const { error } = await signUp(
+      signUpData.email,
+      signUpData.password,
+      signUpData.firstName,
+      signUpData.lastName
+    );
+    
+    setIsLoading(false);
   };
 
-  if (forgotPassword) {
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    await signInWithGoogle();
+    setIsLoading(false);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const { error } = await resetPassword(resetEmail);
+    
+    if (!error) {
+      setShowResetPassword(false);
+    }
+    
+    setIsLoading(false);
+  };
+
+  if (showResetPassword) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader className="text-center">
-            <Button
-              variant="ghost"
-              className="absolute left-4 top-4 p-2"
-              onClick={() => setForgotPassword(false)}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <Logo className="mx-auto mb-4" />
-            <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <CardDescription>
-              Enter your email address and we'll send you a link to reset your password
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="reset-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    className="pl-10"
-                    required
-                  />
+      <AuthGuard requireAuth={false}>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
+          <OfflineIndicator />
+          
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <Logo className="mx-auto mb-4" size="lg" />
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>
+                Enter your email address and we'll send you a reset link
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-              <Button type="submit" className="w-full business-gradient text-white" disabled={loading}>
-                Send Reset Link
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+
+                <Button type="submit" className="w-full business-gradient" disabled={isLoading}>
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setShowResetPassword(false)}
+                >
+                  Back to Sign In
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthGuard>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <Link to="/" className="absolute left-4 top-4 p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <Logo className="mx-auto mb-4" />
-          <CardTitle className="text-2xl">Welcome to BizLens</CardTitle>
-          <CardDescription>
-            Sign in to your account or create a new one to get started
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="signin" className="space-y-4">
-              <Button
-                onClick={handleGoogleAuth}
-                variant="outline"
-                className="w-full border-2 hover:bg-gray-50"
-                disabled={loading}
-              >
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Continue with Google
-              </Button>
+    <AuthGuard requireAuth={false}>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
+        <OfflineIndicator />
+        
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Logo className="mx-auto mb-4" size="lg" />
+            <CardTitle>Welcome to BizLens</CardTitle>
+            <CardDescription>
+              Manage your SME business with ease
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
               
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-              
-              <form onSubmit={handleEmailAuth} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      className="pl-10"
-                      required
-                    />
+              <TabsContent value="signin" className="space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading}
+                >
+                  <FcGoogle className="mr-2 h-4 w-4" />
+                  Continue with Google
+                </Button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
+
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={signInData.email}
+                        onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="remember" className="rounded" />
-                    <Label htmlFor="remember" className="text-sm">Remember me</Label>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={signInData.password}
+                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
+
+                  <Button type="submit" className="w-full business-gradient" disabled={isLoading}>
+                    {isLoading ? 'Signing In...' : 'Sign In'}
+                  </Button>
+
                   <Button
                     type="button"
-                    variant="link"
-                    className="text-sm text-business-blue hover:underline p-0"
-                    onClick={() => setForgotPassword(true)}
+                    variant="ghost"
+                    className="w-full text-sm"
+                    onClick={() => setShowResetPassword(true)}
                   >
-                    Forgot password?
+                    Forgot your password?
                   </Button>
-                </div>
-                <Button type="submit" className="w-full business-gradient text-white" disabled={loading}>
-                  Sign In
-                </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="signup" className="space-y-4">
-              <Button
-                onClick={handleGoogleAuth}
-                variant="outline"
-                className="w-full border-2 hover:bg-gray-50"
-                disabled={loading}
-              >
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Sign up with Google
-              </Button>
+                </form>
+              </TabsContent>
               
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
-                </div>
-              </div>
-              
-              <form onSubmit={handleEmailAuth} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="John"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Doe"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="terms" className="rounded" required />
-                  <Label htmlFor="terms" className="text-sm">
-                    I agree to the{' '}
-                    <Link to="/terms" className="text-business-blue hover:underline">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-business-blue hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </Label>
-                </div>
-                <Button type="submit" className="w-full business-gradient text-white" disabled={loading}>
-                  Create Account
+              <TabsContent value="signup" className="space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading}
+                >
+                  <FcGoogle className="mr-2 h-4 w-4" />
+                  Sign up with Google
                 </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-firstname">First Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-firstname"
+                          type="text"
+                          placeholder="John"
+                          value={signUpData.firstName}
+                          onChange={(e) => setSignUpData({ ...signUpData, firstName: e.target.value })}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-lastname">Last Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-lastname"
+                          type="text"
+                          placeholder="Doe"
+                          value={signUpData.lastName}
+                          onChange={(e) => setSignUpData({ ...signUpData, lastName: e.target.value })}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a strong password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        className="pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={signUpData.confirmPassword}
+                        onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {signUpData.password !== signUpData.confirmPassword && signUpData.confirmPassword && (
+                    <p className="text-sm text-red-500">Passwords don't match</p>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full business-gradient"
+                    disabled={isLoading || signUpData.password !== signUpData.confirmPassword}
+                  >
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </AuthGuard>
   );
 };
 

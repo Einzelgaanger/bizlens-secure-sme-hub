@@ -1,284 +1,258 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Building2, Users, BarChart3, Settings, Bell } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import AuthGuard from '@/components/AuthGuard';
 import Logo from '@/components/Logo';
-import { 
-  Plus, 
-  Building2, 
-  MapPin, 
-  Users, 
-  Calendar,
-  TrendingUp,
-  DollarSign,
-  Package,
-  CreditCard,
-  UserCheck,
-  Settings,
-  Bell,
-  LogOut
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import CreateBusinessDialog from '@/components/business/CreateBusinessDialog';
+import BusinessCard from '@/components/business/BusinessCard';
+import { toast } from 'sonner';
+
+interface Business {
+  id: string;
+  name: string;
+  description: string | null;
+  industry: string;
+  location: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  created_at: string;
+}
+
+interface BusinessEmployee {
+  business_id: string;
+  role: 'admin' | 'employee';
+  status: 'pending' | 'active' | 'inactive';
+}
 
 const Dashboard = () => {
-  const [businesses, setBusinesses] = useState([
-    {
-      id: 1,
-      name: "Mama's Kitchen",
-      location: "Nairobi, Kenya",
-      industry: "Restaurant",
-      employees: 5,
-      created: "2024-01-15",
-      revenue: 45000,
-      role: "admin"
-    },
-    {
-      id: 2,
-      name: "Tech Repairs Ltd",
-      location: "Mombasa, Kenya", 
-      industry: "Technology",
-      employees: 3,
-      created: "2024-02-20",
-      revenue: 32000,
-      role: "employee"
+  const { user, signOut, profile } = useAuth();
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [businessEmployees, setBusinessEmployees] = useState<BusinessEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  const fetchBusinesses = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch businesses owned by user
+      const { data: ownedBusinesses, error: ownedError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (ownedError) throw ownedError;
+
+      // Fetch businesses where user is an employee
+      const { data: employeeRelations, error: employeeError } = await supabase
+        .from('business_employees')
+        .select(`
+          business_id,
+          role,
+          status,
+          businesses (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      if (employeeError) throw employeeError;
+
+      // Combine owned and employee businesses
+      const allBusinesses = [
+        ...(ownedBusinesses || []),
+        ...(employeeRelations?.map(rel => rel.businesses).filter(Boolean) || [])
+      ];
+
+      // Remove duplicates based on business id
+      const uniqueBusinesses = allBusinesses.filter((business, index, self) =>
+        index === self.findIndex(b => b.id === business.id)
+      );
+
+      setBusinesses(uniqueBusinesses);
+      setBusinessEmployees(employeeRelations || []);
+    } catch (error) {
+      console.error('Error fetching businesses:', error);
+      toast.error('Failed to load businesses');
+    } finally {
+      setLoading(false);
     }
-  ]);
-
-  const { toast } = useToast();
-
-  const handleAddBusiness = () => {
-    toast({
-      title: "Add Business",
-      description: "Please connect to Supabase to enable business creation functionality.",
-    });
   };
 
-  const handleBusinessClick = (business: any) => {
-    toast({
-      title: `Opening ${business.name}`,
-      description: "Business management features will be available after Supabase integration.",
-    });
+  useEffect(() => {
+    fetchBusinesses();
+  }, [user]);
+
+  const handleBusinessCreated = () => {
+    setShowCreateDialog(false);
+    fetchBusinesses();
+    toast.success('Business created successfully!');
   };
 
-  const handleLogout = () => {
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
+  const getUserRole = (businessId: string) => {
+    const employeeRelation = businessEmployees.find(emp => emp.business_id === businessId);
+    return employeeRelation?.role || 'owner';
   };
+
+  if (loading) {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-business-blue"></div>
+        </div>
+      </AuthGuard>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <OfflineIndicator />
-      
-      {/* Navigation Header */}
-      <nav className="sticky top-0 z-50 glass-effect border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Logo size="md" />
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-business-red rounded-full text-xs"></span>
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
+    <AuthGuard>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <OfflineIndicator />
+        
+        {/* Header */}
+        <header className="sticky top-0 z-50 glass-effect border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Logo size="md" />
+              
+              <div className="flex items-center space-x-4">
+                <Button variant="ghost" size="sm">
+                  <Bell className="h-5 w-5" />
+                </Button>
+                
+                <div className="flex items-center space-x-2">
+                  <div className="text-right">
+                    <p className="font-medium text-sm">
+                      {profile?.first_name} {profile?.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={signOut}
+                  >
+                    Sign Out
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome back, John! 👋</h1>
-          <p className="text-muted-foreground">Here's an overview of your businesses</p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Businesses</CardTitle>
-              <Building2 className="h-4 w-4 text-business-blue" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{businesses.length}</div>
-              <p className="text-xs text-muted-foreground">Active businesses</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-business-green" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">KSh {businesses.reduce((sum, b) => sum + b.revenue, 0).toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-              <Users className="h-4 w-4 text-business-gold" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{businesses.reduce((sum, b) => sum + b.employees, 0)}</div>
-              <p className="text-xs text-muted-foreground">Across all businesses</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-business-red" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+12.5%</div>
-              <p className="text-xs text-muted-foreground">Compared to last month</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Businesses Section */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Your Businesses</h2>
-          <Button onClick={handleAddBusiness} className="business-gradient text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Business
-          </Button>
-        </div>
-
-        {/* Business Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {businesses.map((business) => (
-            <Card key={business.id} className="hover:shadow-lg transition-all duration-300 cursor-pointer group" onClick={() => handleBusinessClick(business)}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl mb-1">{business.name}</CardTitle>
-                    <CardDescription className="flex items-center space-x-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>{business.location}</span>
-                    </CardDescription>
-                  </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    business.role === 'admin' 
-                      ? 'bg-business-blue/10 text-business-blue' 
-                      : 'bg-business-green/10 text-business-green'
-                  }`}>
-                    {business.role}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Industry</span>
-                    <span className="font-medium">{business.industry}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Employees</span>
-                    <span className="font-medium flex items-center">
-                      <Users className="h-3 w-3 mr-1" />
-                      {business.employees}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Monthly Revenue</span>
-                    <span className="font-medium text-business-green">KSh {business.revenue.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium flex items-center">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {new Date(business.created).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Business Management Buttons Preview */}
-                <div className="mt-4 pt-4 border-t">
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Sales
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <Package className="h-3 w-3 mr-1" />
-                      Stock
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <DollarSign className="h-3 w-3 mr-1" />
-                      Expenses
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <CreditCard className="h-3 w-3 mr-1" />
-                      Debt
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <UserCheck className="h-3 w-3 mr-1" />
-                      Staff
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <Settings className="h-3 w-3 mr-1" />
-                      Settings
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* Add Business Card */}
-          <Card className="border-2 border-dashed border-business-blue/30 hover:border-business-blue/60 transition-colors cursor-pointer group" onClick={handleAddBusiness}>
-            <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-              <div className="w-16 h-16 rounded-full business-gradient flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Plus className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Add New Business</h3>
-              <p className="text-muted-foreground text-sm">
-                Start managing another business with BizLens
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Your Businesses</h1>
+              <p className="text-muted-foreground">
+                Manage and monitor your business operations
               </p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        {/* Quick Actions */}
-        <div className="mt-12">
-          <h3 className="text-xl font-bold mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex-col space-y-2">
-              <TrendingUp className="h-6 w-6 text-business-blue" />
-              <span>Record Sale</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
-              <Package className="h-6 w-6 text-business-green" />
-              <span>Update Stock</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
-              <DollarSign className="h-6 w-6 text-business-gold" />
-              <span>Add Expense</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col space-y-2">
-              <Users className="h-6 w-6 text-business-red" />
-              <span>Manage Staff</span>
-            </Button>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Businesses</CardTitle>
+                  <Building2 className="h-4 w-4 text-business-blue" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{businesses.length}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">As Owner</CardTitle>
+                  <Users className="h-4 w-4 text-business-green" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {businesses.filter(b => getUserRole(b.id) === 'owner').length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">As Employee</CardTitle>
+                  <Users className="h-4 w-4 text-business-gold" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {businessEmployees.length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-business-red" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{businesses.length}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Businesses Grid */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Your Businesses</h2>
+              <Button
+                onClick={() => setShowCreateDialog(true)}
+                className="business-gradient"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Business
+              </Button>
+            </div>
+
+            {businesses.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No businesses yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Create your first business to start managing your operations
+                </p>
+                <Button
+                  onClick={() => setShowCreateDialog(true)}
+                  className="business-gradient"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Business
+                </Button>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {businesses.map((business) => (
+                  <BusinessCard
+                    key={business.id}
+                    business={business}
+                    userRole={getUserRole(business.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        </main>
+
+        {/* Create Business Dialog */}
+        <CreateBusinessDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          onBusinessCreated={handleBusinessCreated}
+        />
       </div>
-    </div>
+    </AuthGuard>
   );
 };
 
