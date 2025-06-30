@@ -48,8 +48,14 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!user) {
       toast.error('You must be logged in to create a business');
+      return;
+    }
+
+    if (!formData.name.trim() || !formData.industry || !formData.location.trim()) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -59,26 +65,28 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
     setIsLoading(true);
 
     try {
+      const businessData = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        industry: formData.industry,
+        location: formData.location.trim(),
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        owner_id: user.id,
+      };
+
+      console.log('Inserting business data:', businessData);
+
       const { data, error } = await supabase
         .from('businesses')
-        .insert([
-          {
-            name: formData.name,
-            description: formData.description || null,
-            industry: formData.industry,
-            location: formData.location,
-            phone: formData.phone || null,
-            email: formData.email || null,
-            address: formData.address || null,
-            owner_id: user.id,
-          }
-        ])
+        .insert([businessData])
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating business:', error);
-        throw error;
+        console.error('Supabase error creating business:', error);
+        throw new Error(error.message || 'Failed to create business');
       }
 
       console.log('Business created successfully:', data);
@@ -96,9 +104,11 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
 
       toast.success('Business created successfully!');
       onBusinessCreated();
+      onOpenChange(false);
+
     } catch (error: any) {
       console.error('Error creating business:', error);
-      toast.error(error.message || 'Failed to create business');
+      toast.error(error.message || 'Failed to create business. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +137,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Enter business name"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -136,6 +147,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               value={formData.industry}
               onValueChange={(value) => handleInputChange('industry', value)}
               required
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select industry" />
@@ -158,6 +170,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               onChange={(e) => handleInputChange('location', e.target.value)}
               placeholder="City, State/Region"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -169,6 +182,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Brief description of your business"
               rows={3}
+              disabled={isLoading}
             />
           </div>
 
@@ -180,6 +194,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               placeholder="+254712345678"
+              disabled={isLoading}
             />
           </div>
 
@@ -191,6 +206,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="business@example.com"
+              disabled={isLoading}
             />
           </div>
 
@@ -202,6 +218,7 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Street address, building, etc."
               rows={2}
+              disabled={isLoading}
             />
           </div>
 
@@ -211,13 +228,14 @@ const CreateBusinessDialog = ({ open, onOpenChange, onBusinessCreated }: CreateB
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="flex-1"
+              disabled={isLoading}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={isLoading || !formData.name || !formData.industry || !formData.location}
+              disabled={isLoading || !formData.name.trim() || !formData.industry || !formData.location.trim()}
             >
               {isLoading ? 'Creating...' : 'Create Business'}
             </Button>

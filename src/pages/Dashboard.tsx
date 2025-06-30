@@ -38,10 +38,15 @@ const Dashboard = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const fetchBusinesses = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping business fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
       console.log('Fetching businesses for user:', user.id);
+      setLoading(true);
       
       // Fetch businesses owned by user
       const { data: ownedBusinesses, error: ownedError } = await supabase
@@ -55,7 +60,7 @@ const Dashboard = () => {
         throw ownedError;
       }
 
-      console.log('Owned businesses:', ownedBusinesses);
+      console.log('Owned businesses fetched:', ownedBusinesses?.length || 0);
 
       // Fetch businesses where user is an employee
       const { data: employeeRelations, error: employeeError } = await supabase
@@ -64,22 +69,37 @@ const Dashboard = () => {
           business_id,
           role,
           status,
-          businesses (*)
+          businesses (
+            id,
+            name,
+            description,
+            industry,
+            location,
+            phone,
+            email,
+            address,
+            created_at
+          )
         `)
         .eq('user_id', user.id)
         .eq('status', 'active');
 
       if (employeeError) {
         console.error('Error fetching employee relations:', employeeError);
-        throw employeeError;
+        // Don't throw here, just log the error
       }
 
-      console.log('Employee relations:', employeeRelations);
+      console.log('Employee relations fetched:', employeeRelations?.length || 0);
+
+      // Process employee businesses
+      const employeeBusinesses = (employeeRelations || [])
+        .map(rel => rel.businesses)
+        .filter(Boolean) as Business[];
 
       // Combine owned and employee businesses
       const allBusinesses = [
         ...(ownedBusinesses || []),
-        ...(employeeRelations?.map(rel => rel.businesses).filter(Boolean) || [])
+        ...employeeBusinesses
       ];
 
       // Remove duplicates based on business id
@@ -87,11 +107,11 @@ const Dashboard = () => {
         index === self.findIndex(b => b.id === business.id)
       );
 
-      console.log('All unique businesses:', uniqueBusinesses);
+      console.log('All unique businesses:', uniqueBusinesses.length);
 
       setBusinesses(uniqueBusinesses);
       
-      // Fix the type casting issue
+      // Store employee data
       const employeeData: BusinessEmployee[] = (employeeRelations || []).map(rel => ({
         business_id: rel.business_id,
         role: rel.role as 'admin' | 'employee',
@@ -99,22 +119,24 @@ const Dashboard = () => {
       }));
       
       setBusinessEmployees(employeeData);
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error fetching businesses:', error);
-      toast.error('Failed to load businesses');
+      toast.error(error.message || 'Failed to load businesses');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBusinesses();
+    if (user) {
+      fetchBusinesses();
+    }
   }, [user]);
 
   const handleBusinessCreated = () => {
     setShowCreateDialog(false);
     fetchBusinesses();
-    toast.success('Business created successfully!');
   };
 
   const getUserRole = (businessId: string) => {
@@ -125,8 +147,11 @@ const Dashboard = () => {
   if (loading) {
     return (
       <AuthGuard>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your businesses...</p>
+          </div>
         </div>
       </AuthGuard>
     );
@@ -134,11 +159,11 @@ const Dashboard = () => {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <div className="min-h-screen bg-white">
         <OfflineIndicator />
         
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b">
+        <header className="sticky top-0 z-50 bg-white border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <Logo size="md" />
@@ -218,7 +243,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-red-600" />
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{businesses.length}</div>
