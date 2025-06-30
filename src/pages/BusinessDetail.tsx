@@ -3,12 +3,26 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Building2, Users, Package, ShoppingCart, Receipt, CreditCard, Bell, Settings, BarChart3 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import AuthGuard from '@/components/AuthGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { 
+  ArrowLeft, 
+  Plus, 
+  TrendingUp, 
+  DollarSign, 
+  ShoppingCart, 
+  Users, 
+  Bell,
+  Settings,
+  CreditCard,
+  BarChart3,
+  AlertCircle
+} from 'lucide-react';
 import { toast } from 'sonner';
+import AuthGuard from '@/components/AuthGuard';
+import Logo from '@/components/Logo';
 
 interface Business {
   id: string;
@@ -19,8 +33,17 @@ interface Business {
   phone: string | null;
   email: string | null;
   address: string | null;
-  created_at: string;
   owner_id: string;
+  created_at: string;
+}
+
+interface BusinessStats {
+  totalSales: number;
+  totalItems: number;
+  totalExpenses: number;
+  totalDebts: number;
+  totalEmployees: number;
+  unreadNotifications: number;
 }
 
 const BusinessDetail = () => {
@@ -28,15 +51,27 @@ const BusinessDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [stats, setStats] = useState<BusinessStats>({
+    totalSales: 0,
+    totalItems: 0,
+    totalExpenses: 0,
+    totalDebts: 0,
+    totalEmployees: 0,
+    unreadNotifications: 0
+  });
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'employee'>('employee');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
 
-  const fetchBusiness = async () => {
-    if (!user || !id) return;
+  useEffect(() => {
+    if (id && user) {
+      fetchBusinessData();
+    }
+  }, [id, user]);
 
+  const fetchBusinessData = async () => {
     try {
-      console.log('Fetching business details for:', id);
+      setLoading(true);
       
       // Fetch business details
       const { data: businessData, error: businessError } = await supabase
@@ -47,15 +82,18 @@ const BusinessDetail = () => {
 
       if (businessError) {
         console.error('Error fetching business:', businessError);
-        toast.error('Failed to load business details');
-        navigate('/dashboard');
-        return;
+        if (businessError.code === 'PGRST116') {
+          toast.error('Business not found');
+          navigate('/dashboard');
+          return;
+        }
+        throw businessError;
       }
 
       setBusiness(businessData);
-
+      
       // Determine user role
-      if (businessData.owner_id === user.id) {
+      if (businessData.owner_id === user?.id) {
         setUserRole('owner');
       } else {
         // Check if user is an employee
@@ -63,12 +101,14 @@ const BusinessDetail = () => {
           .from('business_employees')
           .select('role')
           .eq('business_id', id)
-          .eq('user_id', user.id)
+          .eq('user_id', user?.id)
           .eq('status', 'active')
           .single();
 
         if (employeeError) {
-          console.error('Error checking employee status:', employeeError);
+          if (employeeError.code !== 'PGRST116') {
+            console.error('Error checking employee status:', employeeError);
+          }
           toast.error('You do not have access to this business');
           navigate('/dashboard');
           return;
@@ -77,24 +117,89 @@ const BusinessDetail = () => {
         setUserRole(employeeData.role as 'admin' | 'employee');
       }
 
-    } catch (error) {
-      console.error('Error loading business:', error);
-      toast.error('Failed to load business');
-      navigate('/dashboard');
+      // Check subscription status
+      const { data: subscriptionData } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('business_id', id)
+        .eq('status', 'active')
+        .single();
+
+      setHasActiveSubscription(!!subscriptionData);
+
+      // Fetch business stats
+      await fetchBusinessStats();
+
+    } catch (error: any) {
+      console.error('Error fetching business data:', error);
+      toast.error('Failed to load business data');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchBusiness();
-  }, [id, user]);
+  const fetchBusinessStats = async () => {
+    try {
+      // Fetch sales count
+      const { count: salesCount } = await supabase
+        .from('sales')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id);
+
+      // Fetch stock items count
+      const { count: itemsCount } = await supabase
+        .from('stock_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id);
+
+      // Fetch expenses count
+      const { count: expensesCount } = await supabase
+        .from('expenses')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id);
+
+      // Fetch debts count
+      const { count: debtsCount } = await supabase
+        .from('debts')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id);
+
+      // Fetch employees count
+      const { count: employeesCount } = await supabase
+        .from('business_employees')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id)
+        .eq('status', 'active');
+
+      // Fetch unread notifications count
+      const { count: notificationsCount } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id)
+        .eq('user_id', user?.id)
+        .eq('is_read', false);
+
+      setStats({
+        totalSales: salesCount || 0,
+        totalItems: itemsCount || 0,
+        totalExpenses: expensesCount || 0,
+        totalDebts: debtsCount || 0,
+        totalEmployees: employeesCount || 0,
+        unreadNotifications: notificationsCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching business stats:', error);
+    }
+  };
 
   if (loading) {
     return (
       <AuthGuard>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading business details...</p>
+          </div>
         </div>
       </AuthGuard>
     );
@@ -103,11 +208,13 @@ const BusinessDetail = () => {
   if (!business) {
     return (
       <AuthGuard>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
-            <h2 className="text-xl font-semibold mb-2">Business not found</h2>
+            <AlertCircle className="h-16 w-16 mx-auto text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Business Not Found</h2>
+            <p className="text-gray-600 mb-4">The business you're looking for doesn't exist or you don't have access to it.</p>
             <Button onClick={() => navigate('/dashboard')}>
-              Back to Dashboard
+              Return to Dashboard
             </Button>
           </div>
         </div>
@@ -125,254 +232,332 @@ const BusinessDetail = () => {
               <div className="flex items-center space-x-4">
                 <Button
                   variant="ghost"
-                  size="sm"
                   onClick={() => navigate('/dashboard')}
+                  className="p-2"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-6 w-6 text-blue-600" />
-                  <div>
-                    <h1 className="text-xl font-bold">{business.name}</h1>
-                    <p className="text-sm text-gray-600 capitalize">{userRole}</p>
+                <Logo size="md" />
+                <div>
+                  <h1 className="text-xl font-semibold">{business.name}</h1>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary">{business.industry}</Badge>
+                    <Badge variant={userRole === 'owner' ? 'default' : 'outline'}>
+                      {userRole === 'owner' ? 'Owner' : userRole}
+                    </Badge>
+                    {!hasActiveSubscription && userRole === 'owner' && (
+                      <Badge variant="destructive">No Subscription</Badge>
+                    )}
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm">
-                  <Bell className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(`/business/${id}/notifications`)}
+                  className="relative"
+                >
+                  <Bell className="h-5 w-5" />
+                  {stats.unreadNotifications > 0 && (
+                    <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 min-w-[1.25rem] h-5 flex items-center justify-center rounded-full">
+                      {stats.unreadNotifications}
+                    </Badge>
+                  )}
                 </Button>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(`/business/${id}/settings`)}
+                >
+                  <Settings className="h-5 w-5" />
                 </Button>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="container mx-auto px-4 py-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="sales">Sales</TabsTrigger>
-              <TabsTrigger value="inventory">Inventory</TabsTrigger>
-              <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              <TabsTrigger value="debts">Debts</TabsTrigger>
-              <TabsTrigger value="employees">Employees</TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-                    <ShoppingCart className="h-4 w-4 text-green-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">KSh 0</div>
-                    <p className="text-xs text-gray-600">This month</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                    <Receipt className="h-4 w-4 text-red-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">KSh 0</div>
-                    <p className="text-xs text-gray-600">This month</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Stock Items</CardTitle>
-                    <Package className="h-4 w-4 text-blue-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">0</div>
-                    <p className="text-xs text-gray-600">Items in stock</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Outstanding Debts</CardTitle>
-                    <CreditCard className="h-4 w-4 text-yellow-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">KSh 0</div>
-                    <p className="text-xs text-gray-600">To be collected</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business Information</CardTitle>
-                  <CardDescription>Details about your business</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Industry</label>
-                      <p className="text-sm text-gray-600">{business.industry}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Location</label>
-                      <p className="text-sm text-gray-600">{business.location}</p>
-                    </div>
-                    {business.phone && (
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Subscription Alert */}
+            {!hasActiveSubscription && userRole === 'owner' && (
+              <Card className="mb-6 border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-5 w-5 text-red-500" />
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Phone</label>
-                        <p className="text-sm text-gray-600">{business.phone}</p>
+                        <p className="font-medium text-red-800">Subscription Required</p>
+                        <p className="text-sm text-red-600">
+                          Sales are being recorded but not syncing. Subscribe to access all features.
+                        </p>
                       </div>
-                    )}
-                    {business.email && (
+                    </div>
+                    <Button
+                      onClick={() => navigate(`/business/${id}/subscription`)}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Subscribe Now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <span>Sales</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalSales}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <ShoppingCart className="h-4 w-4 text-blue-600" />
+                    <span>Items</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalItems}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <DollarSign className="h-4 w-4 text-red-600" />
+                    <span>Expenses</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalExpenses}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <span>Debts</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalDebts}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <Users className="h-4 w-4 text-purple-600" />
+                    <span>Employees</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center space-x-1">
+                    <BarChart3 className="h-4 w-4 text-indigo-600" />
+                    <span>Reports</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">View</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Button
+                onClick={() => navigate(`/business/${id}/sales/new`)}
+                className="h-20 bg-green-600 hover:bg-green-700"
+              >
+                <div className="text-center">
+                  <Plus className="h-6 w-6 mx-auto mb-1" />
+                  <span>Record Sale</span>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20"
+                onClick={() => toast.info('Inventory management coming soon')}
+              >
+                <div className="text-center">
+                  <ShoppingCart className="h-6 w-6 mx-auto mb-1" />
+                  <span>Manage Inventory</span>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20"
+                onClick={() => toast.info('Expense tracking coming soon')}
+              >
+                <div className="text-center">
+                  <DollarSign className="h-6 w-6 mx-auto mb-1" />
+                  <span>Track Expenses</span>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20"
+                onClick={() => toast.info('Employee management coming soon')}
+              >
+                <div className="text-center">
+                  <Users className="h-6 w-6 mx-auto mb-1" />
+                  <span>Manage Team</span>
+                </div>
+              </Button>
+            </div>
+
+            {/* Main Content Tabs */}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="sales">Sales</TabsTrigger>
+                <TabsTrigger value="inventory">Inventory</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
+                <TabsTrigger value="team">Team</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Business Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Email</label>
-                        <p className="text-sm text-gray-600">{business.email}</p>
+                        <span className="font-medium">Industry:</span> {business.industry}
                       </div>
-                    )}
-                  </div>
-                  {business.description && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Description</label>
-                      <p className="text-sm text-gray-600">{business.description}</p>
-                    </div>
-                  )}
-                  {business.address && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Address</label>
-                      <p className="text-sm text-gray-600">{business.address}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      <div>
+                        <span className="font-medium">Location:</span> {business.location}
+                      </div>
+                      {business.description && (
+                        <div>
+                          <span className="font-medium">Description:</span> {business.description}
+                        </div>
+                      )}
+                      {business.phone && (
+                        <div>
+                          <span className="font-medium">Phone:</span> {business.phone}
+                        </div>
+                      )}
+                      {business.email && (
+                        <div>
+                          <span className="font-medium">Email:</span> {business.email}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-            <TabsContent value="sales">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sales Management</CardTitle>
-                  <CardDescription>Record and manage your sales transactions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <ShoppingCart className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No sales recorded yet</h3>
-                    <p className="text-gray-600 mb-6">Start recording your first sale to track your revenue</p>
-                    <Button className="bg-green-600 hover:bg-green-700 text-white">
-                      Record Sale
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-600">No recent activity to display.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
-            <TabsContent value="inventory">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Inventory Management</CardTitle>
-                  <CardDescription>Manage your stock items and inventory levels</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No stock items added</h3>
-                    <p className="text-gray-600 mb-6">Add your first stock item to start tracking inventory</p>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                      Add Stock Item
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="expenses">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Expense Management</CardTitle>
-                  <CardDescription>Track and categorize your business expenses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <Receipt className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No expenses recorded</h3>
-                    <p className="text-gray-600 mb-6">Start tracking your business expenses for better financial management</p>
-                    <Button className="bg-red-600 hover:bg-red-700 text-white">
-                      Add Expense
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="debts">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Debt Management</CardTitle>
-                  <CardDescription>Track customer debts and business loans</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No debts recorded</h3>
-                    <p className="text-gray-600 mb-6">Keep track of money owed to you or by you</p>
-                    <Button className="bg-yellow-600 hover:bg-yellow-700 text-white">
-                      Add Debt Record
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="employees">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Employee Management</CardTitle>
-                  <CardDescription>Manage your team and their access levels</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No employees added</h3>
-                    <p className="text-gray-600 mb-6">Invite team members to help manage your business</p>
-                    {userRole === 'owner' && (
-                      <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                        Invite Employee
+              <TabsContent value="sales" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Sales Management</CardTitle>
+                    <CardDescription>
+                      Record and track all your business sales
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No sales recorded yet</h3>
+                      <p className="text-gray-600 mb-4">Start recording your sales to track business performance</p>
+                      <Button
+                        onClick={() => navigate(`/business/${id}/sales/new`)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Record First Sale
                       </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="reports">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business Reports</CardTitle>
-                  <CardDescription>View analytics and generate reports</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <BarChart3 className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No data available</h3>
-                    <p className="text-gray-600 mb-6">Start recording sales and expenses to see reports</p>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                      Generate Report
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
+              <TabsContent value="inventory" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Inventory Management</CardTitle>
+                    <CardDescription>
+                      Manage stock levels and track inventory
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Inventory management</h3>
+                      <p className="text-gray-600 mb-4">Coming soon - manage your stock levels and track inventory</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="reports" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Business Reports</CardTitle>
+                    <CardDescription>
+                      View detailed analytics and reports
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <BarChart3 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Analytics & Reports</h3>
+                      <p className="text-gray-600 mb-4">Coming soon - detailed business analytics and reports</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="team" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Team Management</CardTitle>
+                    <CardDescription>
+                      Manage employees and their roles
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <Users className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Team Management</h3>
+                      <p className="text-gray-600 mb-4">Coming soon - manage your team and assign roles</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
     </AuthGuard>
   );
