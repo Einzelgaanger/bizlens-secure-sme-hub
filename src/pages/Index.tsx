@@ -15,40 +15,45 @@ import {
   CheckCircle,
   ArrowRight,
   Star,
-  Globe
+  Globe,
+  Menu,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import { useState } from 'react';
 
 const Index = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const features = [
     {
-      icon: <BarChart3 className="h-8 w-8 text-business-blue" />,
+      icon: <BarChart3 className="h-6 w-6 text-blue-600" />,
       title: "Real-time Analytics",
       description: "Track sales, expenses, and profits with live dashboard insights"
     },
     {
-      icon: <Users className="h-8 w-8 text-business-green" />,
+      icon: <Users className="h-6 w-6 text-green-600" />,
       title: "Team Management",
       description: "Add employees, assign roles, and monitor business activities remotely"
     },
     {
-      icon: <Smartphone className="h-8 w-8 text-business-gold" />,
+      icon: <Smartphone className="h-6 w-6 text-purple-600" />,
       title: "Offline First",
       description: "Work without internet - data syncs automatically when connected"
     },
     {
-      icon: <Shield className="h-8 w-8 text-business-red" />,
+      icon: <Shield className="h-6 w-6 text-red-600" />,
       title: "Bank-level Security",
       description: "Your business data is protected with enterprise-grade encryption"
     },
     {
-      icon: <Cloud className="h-8 w-8 text-business-blue" />,
+      icon: <Cloud className="h-6 w-6 text-blue-600" />,
       title: "Cloud Sync",
       description: "Access your business data from anywhere, on any device"
     },
     {
-      icon: <DollarSign className="h-8 w-8 text-business-green" />,
+      icon: <DollarSign className="h-6 w-6 text-green-600" />,
       title: "Financial Tracking",
       description: "Monitor cash flow, debts, and subscription payments seamlessly"
     }
@@ -76,101 +81,138 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-white font-inter">
       <OfflineIndicator />
       
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 glass-effect">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <Logo size="md" />
+            
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-muted-foreground hover:text-primary transition-colors">Features</a>
-              <a href="#testimonials" className="text-muted-foreground hover:text-primary transition-colors">Reviews</a>
-              <a href="#pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</a>
-              <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">Privacy</Link>
+              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Features</a>
+              <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Reviews</a>
+              <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
+              <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Privacy</Link>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Desktop Auth Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link to="/auth">
-                <Button variant="outline" className="border-business-blue text-business-blue hover:bg-business-blue hover:text-white">
+                <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
                   Sign In
                 </Button>
               </Link>
               <Link to="/auth">
-                <Button className="business-gradient text-white hover:opacity-90 shadow-lg">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg">
                   Get Started Free
                 </Button>
               </Link>
             </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
+            </div>
           </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 bg-white">
+              <div className="px-2 pt-2 pb-3 space-y-1">
+                <a href="#features" className="block px-3 py-2 text-gray-600 hover:text-blue-600 font-medium">Features</a>
+                <a href="#testimonials" className="block px-3 py-2 text-gray-600 hover:text-blue-600 font-medium">Reviews</a>
+                <a href="#pricing" className="block px-3 py-2 text-gray-600 hover:text-blue-600 font-medium">Pricing</a>
+                <Link to="/privacy" className="block px-3 py-2 text-gray-600 hover:text-blue-600 font-medium">Privacy</Link>
+                <div className="flex flex-col space-y-2 px-3 pt-4">
+                  <Link to="/auth">
+                    <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                      Get Started Free
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="animate-fade-in">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6">
+      {/* Hero Section with Background */}
+      <section className="relative bg-slate-50 py-12 sm:py-20 lg:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-4xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Manage Your{' '}
-              <span className="bg-gradient-to-r from-business-blue via-business-green to-business-gold bg-clip-text text-transparent">
-                SME Business
-              </span>
+              <span className="text-blue-600">SME Business</span>
               <br />Like a Pro
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed max-w-3xl mx-auto">
               The complete offline-first business management platform designed for African SMEs. 
               Track sales, manage employees, and grow your business - even without internet.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth">
-                <Button size="lg" className="business-gradient text-white hover:opacity-90 shadow-xl text-lg px-8 py-4">
+                <Button size="lg" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-lg text-lg px-8 py-4">
                   Start Your Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="border-2 border-business-blue text-business-blue hover:bg-business-blue hover:text-white text-lg px-8 py-4">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-lg px-8 py-4">
                 Watch Demo
               </Button>
             </div>
           </div>
           
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 animate-slide-up">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-16 max-w-3xl mx-auto">
             <div className="text-center">
-              <div className="text-4xl font-bold text-business-blue mb-2">10K+</div>
-              <div className="text-muted-foreground">SMEs Trusted Us</div>
+              <div className="text-3xl sm:text-4xl font-bold text-blue-600 mb-2">10K+</div>
+              <div className="text-gray-600">SMEs Trusted Us</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-business-green mb-2">99.9%</div>
-              <div className="text-muted-foreground">Uptime Guarantee</div>
+              <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">99.9%</div>
+              <div className="text-gray-600">Uptime Guarantee</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-business-gold mb-2">24/7</div>
-              <div className="text-muted-foreground">Support Available</div>
+              <div className="text-3xl sm:text-4xl font-bold text-purple-600 mb-2">24/7</div>
+              <div className="text-gray-600">Support Available</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white/50">
-        <div className="container mx-auto px-4">
+      <section id="features" className="py-16 sm:py-20 lg:py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Everything Your Business Needs</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Everything Your Business Needs</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Powerful tools designed specifically for small and medium enterprises
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="hover:shadow-lg transition-all duration-300 border-0 shadow-md hover:scale-105">
-                <CardHeader>
-                  <div className="mb-4">{feature.icon}</div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+              <Card key={index} className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-blue-200">
+                <CardHeader className="pb-4">
+                  <div className="mb-4 p-3 bg-gray-50 rounded-lg w-fit">{feature.icon}</div>
+                  <CardTitle className="text-xl font-semibold text-gray-900">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-base leading-relaxed">
+                  <CardDescription className="text-base leading-relaxed text-gray-600">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -181,27 +223,27 @@ const Index = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20">
-        <div className="container mx-auto px-4">
+      <section id="testimonials" className="py-16 sm:py-20 lg:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Loved by Business Owners</h2>
-            <p className="text-xl text-muted-foreground">See what our customers say about BizLens</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Loved by Business Owners</h2>
+            <p className="text-xl text-gray-600">See what our customers say about BizLens</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover:shadow-lg transition-all duration-300">
+              <Card key={index} className="hover:shadow-lg transition-all duration-300 bg-white border border-gray-200">
                 <CardHeader>
                   <div className="flex items-center space-x-1 mb-2">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-business-gold text-business-gold" />
+                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <CardTitle className="text-lg">{testimonial.name}</CardTitle>
-                  <CardDescription>{testimonial.business}</CardDescription>
+                  <CardTitle className="text-lg font-semibold text-gray-900">{testimonial.name}</CardTitle>
+                  <CardDescription className="text-gray-600">{testimonial.business}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="italic">"{testimonial.text}"</p>
+                  <p className="italic text-gray-700">"{testimonial.text}"</p>
                 </CardContent>
               </Card>
             ))}
@@ -210,16 +252,16 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 business-gradient">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
+      <section className="py-16 sm:py-20 lg:py-24 bg-blue-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
             Ready to Transform Your Business?
           </h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Join thousands of SME owners who trust BizLens to manage and grow their businesses
           </p>
           <Link to="/auth">
-            <Button size="lg" className="bg-white text-business-blue hover:bg-gray-100 text-lg px-8 py-4 shadow-xl">
+            <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-50 text-lg px-8 py-4 shadow-xl">
               Start Free Trial Today
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -229,9 +271,9 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="sm:col-span-2 lg:col-span-1">
               <Logo className="mb-4" />
               <p className="text-gray-400">
                 Empowering African SMEs with smart business management tools.
@@ -240,8 +282,8 @@ const Index = () => {
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#testimonials" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Demo</a></li>
               </ul>
             </div>

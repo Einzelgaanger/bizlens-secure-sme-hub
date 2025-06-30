@@ -608,6 +608,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      is_business_employee: {
+        Args: { business_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_business_owner: {
+        Args: { business_id: string; user_id: string }
+        Returns: boolean
+      }
       log_activity: {
         Args: {
           p_business_id: string
