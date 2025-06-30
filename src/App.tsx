@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import BusinessDetail from "./pages/BusinessDetail";
 import BusinessSubscription from "./pages/BusinessSubscription";
 import SalesRecording from "./pages/SalesRecording";
+import StockManagement from "./pages/StockManagement";
+import ExpenseManagement from "./pages/ExpenseManagement";
+import DebtManagement from "./pages/DebtManagement";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/business/:id" element={<BusinessDetail />} />
             <Route path="/business/:id/subscription" element={<BusinessSubscription />} />
             <Route path="/business/:id/sales/new" element={<SalesRecording />} />
+            <Route path="/business/:id/stock" element={<StockManagement />} />
+            <Route path="/business/:id/expenses" element={<ExpenseManagement />} />
+            <Route path="/business/:id/debts" element={<DebtManagement />} />
             <Route path="/business/:id/notifications" element={<Notifications />} />
             <Route path="/business/:id/settings" element={<Settings />} />
             <Route path="/terms" element={<Terms />} />

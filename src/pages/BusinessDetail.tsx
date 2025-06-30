@@ -18,7 +18,10 @@ import {
   Settings,
   CreditCard,
   BarChart3,
-  AlertCircle
+  AlertCircle,
+  Package,
+  Receipt,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AuthGuard from '@/components/AuthGuard';
@@ -322,7 +325,7 @@ const BusinessDetail = () => {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center space-x-1">
                     <ShoppingCart className="h-4 w-4 text-blue-600" />
-                    <span>Items</span>
+                    <span>Stock Items</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -380,7 +383,7 @@ const BusinessDetail = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
               <Button
                 onClick={() => navigate(`/business/${id}/sales/new`)}
                 className="h-20 bg-green-600 hover:bg-green-700"
@@ -394,35 +397,63 @@ const BusinessDetail = () => {
               <Button
                 variant="outline"
                 className="h-20"
-                onClick={() => toast.info('Inventory management coming soon')}
+                onClick={() => navigate(`/business/${id}/stock`)}
               >
                 <div className="text-center">
-                  <ShoppingCart className="h-6 w-6 mx-auto mb-1" />
-                  <span>Manage Inventory</span>
+                  <Package className="h-6 w-6 mx-auto mb-1" />
+                  <span>Stock</span>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
                 className="h-20"
-                onClick={() => toast.info('Expense tracking coming soon')}
+                onClick={() => navigate(`/business/${id}/expenses`)}
               >
                 <div className="text-center">
-                  <DollarSign className="h-6 w-6 mx-auto mb-1" />
-                  <span>Track Expenses</span>
+                  <Receipt className="h-6 w-6 mx-auto mb-1" />
+                  <span>Expenses</span>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
                 className="h-20"
-                onClick={() => toast.info('Employee management coming soon')}
+                onClick={() => navigate(`/business/${id}/debts`)}
               >
                 <div className="text-center">
-                  <Users className="h-6 w-6 mx-auto mb-1" />
-                  <span>Manage Team</span>
+                  <FileText className="h-6 w-6 mx-auto mb-1" />
+                  <span>Debts</span>
                 </div>
               </Button>
+
+              {(userRole === 'owner' || userRole === 'admin') && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="h-20"
+                    onClick={() => toast.info('Employee management coming soon')}
+                  >
+                    <div className="text-center">
+                      <Users className="h-6 w-6 mx-auto mb-1" />
+                      <span>Employees</span>
+                    </div>
+                  </Button>
+
+                  {userRole === 'owner' && (
+                    <Button
+                      variant="outline"
+                      className="h-20"
+                      onClick={() => navigate(`/business/${id}/subscription`)}
+                    >
+                      <div className="text-center">
+                        <CreditCard className="h-6 w-6 mx-auto mb-1" />
+                        <span>Subscription</span>
+                      </div>
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Main Content Tabs */}
@@ -512,9 +543,16 @@ const BusinessDetail = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-center py-8">
-                      <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">Inventory management</h3>
-                      <p className="text-gray-600 mb-4">Coming soon - manage your stock levels and track inventory</p>
+                      <Package className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Stock Management</h3>
+                      <p className="text-gray-600 mb-4">Manage your stock levels and track inventory</p>
+                      <Button
+                        onClick={() => navigate(`/business/${id}/stock`)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Manage Stock
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

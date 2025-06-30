@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +22,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  updateProfile: (profileData: { first_name: string; last_name: string; phone: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,6 +64,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
+  };
+
+  const updateProfile = async (profileData: { first_name: string; last_name: string; phone: string }) => {
+    if (!user) throw new Error('No user found');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone: profileData.phone,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Refresh profile data
+    await fetchProfile(user.id);
   };
 
   useEffect(() => {
@@ -230,6 +249,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signInWithGoogle,
     signOut,
     resetPassword,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
