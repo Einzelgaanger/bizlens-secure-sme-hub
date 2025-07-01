@@ -13,24 +13,29 @@ interface AnalyticsProps {
 
 const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ sales, expenses, products, debts }) => {
   // Calculate KPIs
-  const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.total_amount.toString()), 0);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount.toString()), 0);
+  const totalSales = sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const totalProfit = totalSales - totalExpenses;
-  const totalDebt = debts.reduce((sum, debt) => sum + (parseFloat(debt.amount.toString()) - parseFloat(debt.paid_amount.toString())), 0);
+  const totalDebt = debts.reduce((sum, debt) => {
+    const amount = Number(debt.amount || 0);
+    const paidAmount = Number(debt.paid_amount || 0);
+    return sum + (amount - paidAmount);
+  }, 0);
 
   // Process sales data for chart
   const salesData = sales.slice(0, 7).map((sale, index) => ({
     date: new Date(sale.created_at).toLocaleDateString(),
-    amount: parseFloat(sale.total_amount.toString()),
+    amount: Number(sale.total_amount || 0),
     day: `Day ${index + 1}`
   }));
 
   // Process expenses by category
   const expensesByCategory = expenses.reduce((acc, expense) => {
     const category = expense.category || 'Other';
-    acc[category] = (acc[category] || 0) + parseFloat(expense.amount.toString());
+    const amount = Number(expense.amount || 0);
+    acc[category] = (acc[category] || 0) + amount;
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
 
   const expensesData = Object.entries(expensesByCategory).map(([category, amount]) => ({
     category,
@@ -159,7 +164,7 @@ const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ sales, expenses, product
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="current_stock" fill="#16A34A" />
+              <Bar dataKey="quantity" fill="#16A34A" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

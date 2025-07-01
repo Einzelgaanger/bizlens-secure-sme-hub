@@ -32,10 +32,10 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Get user's business
+      // Get user's profile and business
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_id, businesses(*)')
+        .select('business_id, role')
         .eq('id', user?.id)
         .single();
 
@@ -44,7 +44,14 @@ const Dashboard = () => {
         return;
       }
 
-      setBusiness(profile.businesses);
+      // Get business details
+      const { data: businessData } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', profile.business_id)
+        .single();
+
+      setBusiness(businessData);
 
       // Fetch sales data
       const { data: sales } = await supabase
@@ -66,9 +73,9 @@ const Dashboard = () => {
 
       setExpensesData(expenses || []);
 
-      // Fetch products data
+      // Fetch products data from stock_items (using existing table)
       const { data: products } = await supabase
-        .from('products')
+        .from('stock_items')
         .select('*')
         .eq('business_id', profile.business_id);
 
@@ -79,7 +86,7 @@ const Dashboard = () => {
         .from('debts')
         .select('*')
         .eq('business_id', profile.business_id)
-        .lt('paid_amount', supabase.raw('amount'));
+        .gt('remaining_amount', 0);
 
       setDebtsData(debts || []);
 
@@ -103,10 +110,10 @@ const Dashboard = () => {
   };
 
   const calculateTotals = () => {
-    const totalSales = salesData.reduce((sum, sale: any) => sum + parseFloat(sale.total_amount.toString()), 0);
-    const totalExpenses = expensesData.reduce((sum, expense: any) => sum + parseFloat(expense.amount.toString()), 0);
-    const lowStockItems = productsData.filter((product: any) => product.current_stock <= product.min_stock_threshold);
-    const outstandingDebts = debtsData.reduce((sum, debt: any) => sum + (parseFloat(debt.amount.toString()) - parseFloat(debt.paid_amount.toString())), 0);
+    const totalSales = salesData.reduce((sum, sale: any) => sum + Number(sale.total_amount), 0);
+    const totalExpenses = expensesData.reduce((sum, expense: any) => sum + Number(expense.amount), 0);
+    const lowStockItems = productsData.filter((product: any) => product.quantity <= (product.min_stock_level || 5));
+    const outstandingDebts = debtsData.reduce((sum, debt: any) => sum + Number(debt.remaining_amount), 0);
 
     return { totalSales, totalExpenses, lowStockItems: lowStockItems.length, outstandingDebts };
   };
@@ -159,7 +166,7 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-3">
                   <div className="text-right hidden sm:block">
                     <p className="font-medium text-sm text-gray-900">
-                      {user?.user_metadata?.full_name || user?.email}
+                      {user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email}
                     </p>
                     <p className="text-xs text-gray-500">Business Owner</p>
                   </div>
