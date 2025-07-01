@@ -1,156 +1,125 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Building2, Users, BarChart3, Settings, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Bell, Plus, TrendingUp, ShoppingCart, AlertTriangle, DollarSign } from 'lucide-react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import AuthGuard from '@/components/AuthGuard';
 import Logo from '@/components/Logo';
-import OfflineIndicator from '@/components/OfflineIndicator';
-import CreateBusinessDialog from '@/components/business/CreateBusinessDialog';
-import BusinessCard from '@/components/business/BusinessCard';
-import { toast } from 'sonner';
-
-interface Business {
-  id: string;
-  name: string;
-  description: string | null;
-  industry: string;
-  location: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  created_at: string;
-}
-
-interface BusinessEmployee {
-  business_id: string;
-  role: 'admin' | 'employee';
-  status: 'pending' | 'active' | 'inactive';
-}
+import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 
 const Dashboard = () => {
-  const { user, signOut, profile } = useAuth();
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [businessEmployees, setBusinessEmployees] = useState<BusinessEmployee[]>([]);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [business, setBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [salesData, setSalesData] = useState([]);
+  const [expensesData, setExpensesData] = useState([]);
+  const [productsData, setProductsData] = useState([]);
+  const [debtsData, setDebtsData] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
-  const fetchBusinesses = async () => {
-    if (!user) {
-      console.log('No user found, skipping business fetch');
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (user) {
+      fetchBusinessData();
     }
+  }, [user]);
 
+  const fetchBusinessData = async () => {
     try {
-      console.log('Fetching businesses for user:', user.id);
       setLoading(true);
       
-      // Fetch businesses owned by user
-      const { data: ownedBusinesses, error: ownedError } = await supabase
-        .from('businesses')
+      // Get user's business
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('business_id, businesses(*)')
+        .eq('id', user?.id)
+        .single();
+
+      if (!profile?.business_id) {
+        navigate('/business-setup');
+        return;
+      }
+
+      setBusiness(profile.businesses);
+
+      // Fetch sales data
+      const { data: sales } = await supabase
+        .from('sales')
         .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('business_id', profile.business_id)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (ownedError) {
-        console.error('Error fetching owned businesses:', ownedError);
-        throw ownedError;
-      }
+      setSalesData(sales || []);
 
-      console.log('Owned businesses fetched:', ownedBusinesses?.length || 0);
+      // Fetch expenses data
+      const { data: expenses } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('business_id', profile.business_id)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      // Fetch businesses where user is an employee
-      const { data: employeeRelations, error: employeeError } = await supabase
-        .from('business_employees')
-        .select(`
-          business_id,
-          role,
-          status,
-          businesses (
-            id,
-            name,
-            description,
-            industry,
-            location,
-            phone,
-            email,
-            address,
-            created_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'active');
+      setExpensesData(expenses || []);
 
-      if (employeeError) {
-        console.error('Error fetching employee relations:', employeeError);
-        // Don't throw here, just log the error
-      }
+      // Fetch products data
+      const { data: products } = await supabase
+        .from('products')
+        .select('*')
+        .eq('business_id', profile.business_id);
 
-      console.log('Employee relations fetched:', employeeRelations?.length || 0);
+      setProductsData(products || []);
 
-      // Process employee businesses
-      const employeeBusinesses = (employeeRelations || [])
-        .map(rel => rel.businesses)
-        .filter(Boolean) as Business[];
+      // Fetch debts data
+      const { data: debts } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('business_id', profile.business_id)
+        .lt('paid_amount', supabase.raw('amount'));
 
-      // Combine owned and employee businesses
-      const allBusinesses = [
-        ...(ownedBusinesses || []),
-        ...employeeBusinesses
-      ];
+      setDebtsData(debts || []);
 
-      // Remove duplicates based on business id
-      const uniqueBusinesses = allBusinesses.filter((business, index, self) =>
-        index === self.findIndex(b => b.id === business.id)
-      );
+      // Fetch notifications
+      const { data: notifs } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      console.log('All unique businesses:', uniqueBusinesses.length);
+      setNotifications(notifs || []);
 
-      setBusinesses(uniqueBusinesses);
-      
-      // Store employee data
-      const employeeData: BusinessEmployee[] = (employeeRelations || []).map(rel => ({
-        business_id: rel.business_id,
-        role: rel.role as 'admin' | 'employee',
-        status: rel.status as 'pending' | 'active' | 'inactive'
-      }));
-      
-      setBusinessEmployees(employeeData);
-
-    } catch (error: any) {
-      console.error('Error fetching businesses:', error);
-      toast.error(error.message || 'Failed to load businesses');
+    } catch (error) {
+      console.error('Error fetching business data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchBusinesses();
-    }
-  }, [user]);
+  const calculateTotals = () => {
+    const totalSales = salesData.reduce((sum, sale: any) => sum + parseFloat(sale.total_amount.toString()), 0);
+    const totalExpenses = expensesData.reduce((sum, expense: any) => sum + parseFloat(expense.amount.toString()), 0);
+    const lowStockItems = productsData.filter((product: any) => product.current_stock <= product.min_stock_threshold);
+    const outstandingDebts = debtsData.reduce((sum, debt: any) => sum + (parseFloat(debt.amount.toString()) - parseFloat(debt.paid_amount.toString())), 0);
 
-  const handleBusinessCreated = () => {
-    setShowCreateDialog(false);
-    fetchBusinesses();
+    return { totalSales, totalExpenses, lowStockItems: lowStockItems.length, outstandingDebts };
   };
 
-  const getUserRole = (businessId: string) => {
-    const employeeRelation = businessEmployees.find(emp => emp.business_id === businessId);
-    return employeeRelation?.role || 'owner';
-  };
+  const { totalSales, totalExpenses, lowStockItems, outstandingDebts } = calculateTotals();
 
   if (loading) {
     return (
       <AuthGuard>
-        <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your businesses...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your business dashboard...</p>
           </div>
         </div>
       </AuthGuard>
@@ -159,33 +128,42 @@ const Dashboard = () => {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-white">
-        <OfflineIndicator />
-        
+      <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-white border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <Logo size="md" />
+        <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <Logo size="lg" />
+                <div className="hidden sm:block">
+                  <h1 className="text-xl font-bold text-gray-900">{business?.name}</h1>
+                  <p className="text-sm text-gray-500">Business Dashboard</p>
+                </div>
+              </div>
               
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="relative"
+                  onClick={() => navigate('/notifications')}
+                >
                   <Bell className="h-5 w-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {notifications.length}
+                    </span>
+                  )}
                 </Button>
                 
-                <div className="flex items-center space-x-2">
-                  <div className="text-right">
-                    <p className="font-medium text-sm">
-                      {profile?.first_name} {profile?.last_name}
+                <div className="flex items-center space-x-3">
+                  <div className="text-right hidden sm:block">
+                    <p className="font-medium text-sm text-gray-900">
+                      {user?.user_metadata?.full_name || user?.email}
                     </p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                    <p className="text-xs text-gray-500">Business Owner</p>
                   </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={signOut}
-                  >
+                  <Button variant="outline" size="sm" onClick={signOut}>
                     Sign Out
                   </Button>
                 </div>
@@ -195,109 +173,118 @@ const Dashboard = () => {
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Your Businesses</h1>
-              <p className="text-gray-600">
-                Manage and monitor your business operations
-              </p>
-            </div>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="bg-white hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Total Sales</CardTitle>
+                <DollarSign className="h-5 w-5 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">KES {totalSales.toLocaleString()}</div>
+                <p className="text-xs text-gray-500 mt-1">This month</p>
+              </CardContent>
+            </Card>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Businesses</CardTitle>
-                  <Building2 className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{businesses.length}</div>
-                </CardContent>
-              </Card>
+            <Card className="bg-white hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Total Expenses</CardTitle>
+                <TrendingUp className="h-5 w-5 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">KES {totalExpenses.toLocaleString()}</div>
+                <p className="text-xs text-gray-500 mt-1">This month</p>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">As Owner</CardTitle>
-                  <Users className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {businesses.filter(b => getUserRole(b.id) === 'owner').length}
-                  </div>
-                </CardContent>
-              </Card>
+            <Card className="bg-white hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Low Stock Items</CardTitle>
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{lowStockItems}</div>
+                <p className="text-xs text-gray-500 mt-1">Need restocking</p>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">As Employee</CardTitle>
-                  <Users className="h-4 w-4 text-yellow-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {businessEmployees.length}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{businesses.length}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Businesses Grid */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Your Businesses</h2>
-              <Button
-                onClick={() => setShowCreateDialog(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Business
-              </Button>
-            </div>
-
-            {businesses.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No businesses yet</h3>
-                <p className="text-gray-600 mb-6">
-                  Create your first business to start managing your operations
-                </p>
-                <Button
-                  onClick={() => setShowCreateDialog(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Business
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {businesses.map((business) => (
-                  <BusinessCard
-                    key={business.id}
-                    business={business}
-                    userRole={getUserRole(business.id)}
-                  />
-                ))}
-              </div>
-            )}
+            <Card className="bg-white hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Outstanding Debts</CardTitle>
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">KES {outstandingDebts.toLocaleString()}</div>
+                <p className="text-xs text-gray-500 mt-1">To be collected</p>
+              </CardContent>
+            </Card>
           </div>
-        </main>
 
-        {/* Create Business Dialog */}
-        <CreateBusinessDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-          onBusinessCreated={handleBusinessCreated}
-        />
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <Button
+              onClick={() => navigate('/sales')}
+              className="h-20 bg-blue-600 hover:bg-blue-700 flex flex-col items-center justify-center"
+            >
+              <Plus className="h-6 w-6 mb-2" />
+              <span className="text-sm">Record Sale</span>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/inventory')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center"
+            >
+              <ShoppingCart className="h-6 w-6 mb-2" />
+              <span className="text-sm">Inventory</span>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/expenses')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center"
+            >
+              <TrendingUp className="h-6 w-6 mb-2" />
+              <span className="text-sm">Add Expense</span>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/debts')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center"
+            >
+              <DollarSign className="h-6 w-6 mb-2" />
+              <span className="text-sm">Manage Debts</span>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/employees')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center"
+            >
+              <Bell className="h-6 w-6 mb-2" />
+              <span className="text-sm">Employees</span>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/subscription')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center"
+            >
+              <TrendingUp className="h-6 w-6 mb-2" />
+              <span className="text-sm">Subscription</span>
+            </Button>
+          </div>
+
+          {/* Analytics Dashboard */}
+          <AnalyticsDashboard 
+            sales={salesData}
+            expenses={expensesData}
+            products={productsData}
+            debts={debtsData}
+          />
+        </main>
       </div>
     </AuthGuard>
   );
