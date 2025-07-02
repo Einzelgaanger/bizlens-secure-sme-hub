@@ -12,8 +12,15 @@ import AuthGuard from '@/components/AuthGuard';
 interface Business {
   id: string;
   name: string;
-  subscription_plan: 'basic' | 'premium';
-  subscription_end: string | null;
+  address?: string;
+  created_at: string;
+  description?: string;
+  email?: string;
+  industry: string;
+  location: string;
+  owner_id: string;
+  phone?: string;
+  updated_at: string;
 }
 
 const Subscription = () => {
@@ -143,16 +150,14 @@ const Subscription = () => {
                   </div>
                   <div className="text-right">
                     <Badge 
-                      variant={business.subscription_plan === 'premium' ? 'default' : 'secondary'}
+                      variant="secondary"
                       className="mb-2"
                     >
-                      {business.subscription_plan} Plan
+                      Basic Plan
                     </Badge>
-                    {business.subscription_end && (
-                      <p className="text-sm text-gray-500">
-                        Expires: {new Date(business.subscription_end).toLocaleDateString()}
-                      </p>
-                    )}
+                    <p className="text-sm text-gray-500">
+                      Free Trial - 30 days remaining
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -193,10 +198,10 @@ const Subscription = () => {
                   <Button 
                     className="w-full"
                     onClick={() => createCheckoutSession(plan.id as 'basic' | 'premium')}
-                    disabled={business?.subscription_plan === plan.id}
+                    disabled={plan.id === 'basic'}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
-                    {business?.subscription_plan === plan.id 
+                    {plan.id === 'basic' 
                       ? 'Current Plan' 
                       : `Upgrade to ${plan.name}`
                     }

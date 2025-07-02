@@ -176,6 +176,7 @@ export type Database = {
       }
       debts: {
         Row: {
+          amount: number | null
           business_id: string
           created_at: string
           debt_type: string
@@ -185,7 +186,9 @@ export type Database = {
           description: string
           due_date: string | null
           id: string
+          is_business_debt: boolean | null
           original_amount: number
+          paid_amount: number | null
           recorded_by: string
           related_expense_id: string | null
           related_sale_id: string | null
@@ -194,6 +197,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount?: number | null
           business_id: string
           created_at?: string
           debt_type: string
@@ -203,7 +207,9 @@ export type Database = {
           description: string
           due_date?: string | null
           id?: string
+          is_business_debt?: boolean | null
           original_amount: number
+          paid_amount?: number | null
           recorded_by: string
           related_expense_id?: string | null
           related_sale_id?: string | null
@@ -212,6 +218,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount?: number | null
           business_id?: string
           created_at?: string
           debt_type?: string
@@ -221,7 +228,9 @@ export type Database = {
           description?: string
           due_date?: string | null
           id?: string
+          is_business_debt?: boolean | null
           original_amount?: number
+          paid_amount?: number | null
           recorded_by?: string
           related_expense_id?: string | null
           related_sale_id?: string | null
@@ -361,36 +370,53 @@ export type Database = {
       }
       profiles: {
         Row: {
+          business_id: string | null
           created_at: string
           email: string | null
           first_name: string | null
+          full_name: string | null
           id: string
           last_name: string | null
           phone: string | null
+          role: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          business_id?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
+          full_name?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
+          role?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          business_id?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
+          full_name?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
+          role?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sale_items: {
         Row: {

@@ -166,11 +166,10 @@ const Reports = () => {
                   <label className="block text-sm font-medium mb-2">
                     Date Range
                   </label>
-                  <DatePickerWithRange 
-                    date={dateRange}
-                    onDateChange={setDateRange}
-                    disabled={!isPremium}
-                  />
+            <DatePickerWithRange 
+              date={dateRange}
+              onDateChange={setDateRange}
+            />
                 </div>
               </div>
 

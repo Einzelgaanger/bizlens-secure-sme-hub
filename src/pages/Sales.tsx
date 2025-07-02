@@ -29,9 +29,9 @@ interface SaleItem {
 interface Product {
   id: string;
   name: string;
-  selling_price: number;
+  unit_price: number;
   cost_price: number;
-  current_stock: number;
+  quantity: number;
 }
 
 const Sales = () => {
@@ -81,7 +81,7 @@ const Sales = () => {
       setBusiness(businessData);
 
       const { data: productsData } = await supabase
-        .from('products')
+        .from('stock_items')
         .select('*')
         .eq('business_id', profile.business_id);
 
@@ -125,9 +125,9 @@ const Sales = () => {
           const product = products.find(p => p.id === value);
           if (product) {
             updatedItem.product_name = product.name;
-            updatedItem.unit_price = product.selling_price;
+            updatedItem.unit_price = product.unit_price;
             updatedItem.cost_price = product.cost_price;
-            updatedItem.total_price = updatedItem.quantity * product.selling_price;
+            updatedItem.total_price = updatedItem.quantity * product.unit_price;
           }
         }
         
@@ -150,13 +150,13 @@ const Sales = () => {
 
     try {
       const { data, error } = await supabase
-        .from('products')
+        .from('stock_items')
         .insert({
           business_id: business.id,
           name: newProduct.name,
-          selling_price: newProduct.selling_price,
+          unit_price: newProduct.selling_price,
           cost_price: newProduct.cost_price,
-          is_service: true
+          created_by: user?.id || ''
         })
         .select()
         .single();
@@ -196,12 +196,12 @@ const Sales = () => {
         .from('sales')
         .insert({
           business_id: business.id,
-          user_id: user?.id,
+          sold_by: user?.id || '',
           customer_name: customerName || null,
           customer_phone: customerPhone || null,
           total_amount: getTotalAmount(),
           payment_method: paymentMethod,
-          is_debt: paymentMethod === 'debt',
+          sale_type: paymentMethod === 'debt' ? 'credit' : 'cash',
           notes: notes || null
         })
         .select()
@@ -212,8 +212,8 @@ const Sales = () => {
       // Create sale items
       const saleItemsData = saleItems.map(item => ({
         sale_id: sale.id,
-        product_id: linkToStock ? item.product_id : null,
-        product_name: item.product_name,
+        stock_item_id: linkToStock ? item.product_id : null,
+        item_name: item.product_name,
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: item.total_price,
@@ -232,11 +232,15 @@ const Sales = () => {
           .from('debts')
           .insert({
             business_id: business.id,
-            sale_id: sale.id,
+            related_sale_id: sale.id,
             debtor_name: customerName,
             debtor_phone: customerPhone,
+            original_amount: getTotalAmount(),
             amount: getTotalAmount(),
             paid_amount: 0,
+            remaining_amount: getTotalAmount(),
+            debt_type: 'customer',
+            recorded_by: user?.id || '',
             description: `Sale debt for ${saleItems.map(item => item.product_name).join(', ')}`
           });
 
@@ -384,7 +388,7 @@ const Sales = () => {
                             <SelectContent>
                               {products.map((product) => (
                                 <SelectItem key={product.id} value={product.id}>
-                                  {product.name} - KES {product.selling_price}
+                                  {product.name} - KES {product.unit_price}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -419,7 +423,7 @@ const Sales = () => {
                           onChange={(e) => updateSaleItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
                           min="0"
                           step="0.01"
-                          disabled={linkToStock && item.product_id}
+                          disabled={linkToStock && !!item.product_id}
                         />
                       </div>
                       

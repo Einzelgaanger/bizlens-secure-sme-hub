@@ -83,10 +83,11 @@ const Expenses = () => {
         .from('expenses')
         .insert({
           business_id: profile.business_id,
-          user_id: user.id,
+          recorded_by: user.id,
           category: formData.category,
           description: formData.description,
           amount: parseFloat(formData.amount),
+          payment_method: 'cash',
         });
 
       if (error) throw error;

@@ -17,7 +17,7 @@ interface Employee {
   email: string;
   full_name: string | null;
   phone: string | null;
-  role: 'admin' | 'employee';
+  role: string;
   created_at: string;
 }
 
@@ -96,7 +96,7 @@ const Employees = () => {
       const { error } = await supabase
         .from('profiles')
         .insert({
-          id: crypto.randomUUID(), // Temporary - should be from auth.users
+          user_id: crypto.randomUUID(), // Temporary - should be from auth.users
           email: formData.email,
           full_name: formData.full_name,
           phone: formData.phone,

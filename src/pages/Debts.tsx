@@ -79,6 +79,7 @@ const Debts = () => {
           debt_id: debtId,
           amount: amount,
           payment_method: 'cash',
+          recorded_by: user?.id || '',
         });
 
       if (paymentError) throw paymentError;
