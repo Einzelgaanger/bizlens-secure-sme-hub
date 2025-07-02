@@ -36,11 +36,11 @@ const Dashboard = () => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('business_id, role')
-        .eq('id', user?.id)
+        .eq('user_id', user?.id)
         .single();
 
       if (!profile?.business_id) {
-        navigate('/business-setup');
+        navigate('/business-selection');
         return;
       }
 

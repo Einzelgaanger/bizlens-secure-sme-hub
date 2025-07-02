@@ -49,7 +49,7 @@ const BusinessSetup = () => {
           business_id: business.id,
           role: 'admin'
         })
-        .eq('id', user.id);
+        .eq('user_id', user.id);
 
       if (profileError) throw profileError;
 

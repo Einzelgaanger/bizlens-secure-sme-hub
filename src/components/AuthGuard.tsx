@@ -19,7 +19,7 @@ const AuthGuard = ({ children, requireAuth = true }: AuthGuardProps) => {
       if (requireAuth && !user) {
         navigate('/auth', { replace: true });
       } else if (!requireAuth && user && location.pathname === '/auth') {
-        navigate('/dashboard', { replace: true });
+        navigate('/business-selection', { replace: true });
       }
     }
   }, [user, loading, navigate, requireAuth, location.pathname]);
