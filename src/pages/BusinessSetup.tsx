@@ -20,8 +20,8 @@ const BusinessSetup = () => {
     name: '',
     location: '',
     industry: '',
-    contact_phone: '',
-    contact_email: '',
+    phone: '',
+    email: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,21 +109,21 @@ const BusinessSetup = () => {
               </div>
 
               <div>
-                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Label htmlFor="phone">Contact Phone</Label>
                 <Input
-                  id="contact_phone"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                 />
               </div>
 
               <div>
-                <Label htmlFor="contact_email">Contact Email</Label>
+                <Label htmlFor="email">Contact Email</Label>
                 <Input
-                  id="contact_email"
+                  id="email"
                   type="email"
-                  value={formData.contact_email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contact_email: e.target.value }))}
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 />
               </div>
 
